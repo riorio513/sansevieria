@@ -287,11 +287,33 @@
 const STORAGE_WORKS = 'sansevieria_works';
 const STORAGE_SETTINGS = 'sansevieria_settings';
 
-// 未決事項1: 新人賞プリセットは目安値。応募前に必ず公式最新情報を確認すること。
-// 1行の文字数は最大40字までのみ対応（それを超える賞のフォーマットは非対応）。
+// 未決事項1: 新人賞プリセットは目安値。2026年7月時点の公式募集要項を調査して作成したが、
+// 応募規定は年により変わるため、応募前に必ず各主催者公式サイトの最新情報を確認すること。
+// 1行の文字数は最大40字までのみ対応（それを超える賞のフォーマットは非対応。例：電撃小説大賞は42字のため非対応）。
+// targetCharsは各賞の規定枚数レンジのうち下限値を採用（400字詰め原稿用紙換算、または規定書式での換算）。
 const AWARD_PRESETS = {
-  free:   { name: '自由設定（賞を選ばない）', lineChars: 40, pageLines: 30, targetChars: null },
-  seicho: { name: '松本清張賞（目安・要確認）', lineChars: 40, pageLines: 20, targetChars: 120000 },
+  free:    { name: '自由設定（賞を選ばない）', lineChars: 40, pageLines: 30, targetChars: null },
+  subaru:  { name: '小説すばる新人賞（目安・要確認）', lineChars: 40, pageLines: 30, targetChars: 80000 },
+  matsumoto:{ name: '松本清張賞（目安・要確認）', lineChars: 40, pageLines: 30, targetChars: 120000 },
+  ranpo:   { name: '江戸川乱歩賞（目安・要確認）', lineChars: 30, pageLines: 40, targetChars: 140000 },
+  gunzou:  { name: '群像新人文学賞（目安・要確認）', lineChars: 40, pageLines: 36, targetChars: 28000 },
+  bungei:  { name: '文藝賞（目安・公式レイアウト指定なし）', lineChars: 40, pageLines: 30, targetChars: 40000 },
+  shincho: { name: '新潮新人賞（目安・要確認）', lineChars: 20, pageLines: 20, targetChars: 20000 },
+  subarubungaku: { name: 'すばる文学賞（目安・要確認）', lineChars: 30, pageLines: 40, targetChars: 40000 },
+  dazai:   { name: '太宰治賞（目安・要確認）', lineChars: 40, pageLines: 30, targetChars: 20000 },
+  yokomizo:{ name: '横溝正史ミステリ＆ホラー大賞（目安・要確認／旧・日本ホラー小説大賞）', lineChars: 40, pageLines: 40, targetChars: 120000 },
+  mephisto:{ name: 'メフィスト賞（目安・要確認）', lineChars: 40, pageLines: 40, targetChars: 50000 },
+  konomys: { name: 'このミステリーがすごい！大賞（目安・要確認）', lineChars: 40, pageLines: 40, targetChars: 160000 },
+  bungakukai: { name: '文學界新人賞（目安・公式レイアウト指定なし）', lineChars: 40, pageLines: 30, targetChars: 28000 },
+  ayukawa: { name: '鮎川哲也賞（目安・要確認）', lineChars: 40, pageLines: 40, targetChars: 144000 },
+  kadokawaharuki: { name: '角川春樹小説賞（目安・要確認）', lineChars: 30, pageLines: 30, targetChars: 120000 },
+  gendaichouhen: { name: '小説現代長編新人賞（目安・要確認）', lineChars: 30, pageLines: 40, targetChars: 33200 },
+  yaseijidai: { name: '小説野性時代新人賞（目安・要確認／旧・野性時代フロンティア文学賞）', lineChars: 40, pageLines: 40, targetChars: 80000 },
+  fantasy: { name: '日本ファンタジーノベル大賞（目安・要確認）', lineChars: 40, pageLines: 30, targetChars: 120000 },
+  mystery_bungaku: { name: '日本ミステリー文学大賞新人賞（目安・要確認）', lineChars: 30, pageLines: 40, targetChars: 140000 },
+  poplar: { name: 'ポプラ社小説新人賞（目安・要確認）', lineChars: 40, pageLines: 36, targetChars: 80000 },
+  sogen_mystery: { name: '創元ミステリ短編賞（目安・要確認／旧・ミステリーズ!新人賞）', lineChars: 40, pageLines: 40, targetChars: 12000 },
+  kafu: { name: '永井荷風新人賞（目安・要確認／旧・三田文学新人賞）', lineChars: 40, pageLines: 30, targetChars: 40000 },
 };
 
 const FONT_STACKS = {
