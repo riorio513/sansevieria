@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>サンスベリア - 執筆集中ツール</title>
+<script src="vendor-docx.js"></script>
+<style>
+  :root{
+    --bg: #f4ede1;
+    --panel: #efe4d3;
+    --wood: #8a6240;
+    --wood-dark: #6b4a30;
+    --ink: #3a2c1c;
+    --accent: #b5793d;
+    --card: #fbf6ec;
+    --warn: #c9781f;
+    --danger: #b3401f;
+    --border: #d8c6a8;
+  }
+  body.night{
+    --bg: #1e1a16;
+    --panel: #26211c;
+    --wood: #4a3a2c;
+    --wood-dark: #352a20;
+    --ink: #d8cdb8;
+    --accent: #a67c4a;
+    --card: #23201a;
+    --warn: #e0a25a;
+    --danger: #e0704a;
+    --border: #3a3226;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family: "Yu Gothic","Hiragino Kaku Gothic ProN",sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    transition: background .3s, color .3s;
+  }
+  .screen{ display:none; min-height:100vh; }
+  .screen.active{ display:block; }
+
+  /* ---- 作品一覧 ---- */
+  header.app-header{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:16px 24px; background:var(--wood); color:#fff;
+  }
+  header.app-header .title{ font-size:20px; font-weight:bold; letter-spacing:.05em; }
+  header.app-header .actions button{
+    background:none; border:1px solid rgba(255,255,255,.6); color:#fff;
+    padding:6px 12px; border-radius:6px; margin-left:8px; cursor:pointer;
+  }
+  .toolbar-row{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:16px 24px; gap:12px; flex-wrap:wrap;
+  }
+  .btn{
+    background:var(--accent); color:#fff; border:none; border-radius:6px;
+    padding:10px 18px; font-size:14px; cursor:pointer;
+  }
+  .btn.secondary{ background:transparent; color:var(--ink); border:1px solid var(--border); }
+  .btn.small{ padding:5px 10px; font-size:12px; }
+  select, input[type=number], input[type=time], input[type=text]{
+    font-family:inherit; padding:6px 8px; border-radius:6px; border:1px solid var(--border);
+    background:var(--card); color:var(--ink);
+  }
+  .work-list{ padding:0 24px 40px; display:flex; flex-direction:column; gap:12px; }
+  .work-card{
+    background:var(--card); border:1px solid var(--border); border-radius:10px;
+    padding:16px 20px; display:flex; justify-content:space-between; align-items:center;
+  }
+  .work-card .info .t{ font-size:17px; font-weight:bold; margin-bottom:4px; }
+  .work-card .info .meta{ font-size:13px; opacity:.75; line-height:1.6; }
+  .work-card .card-actions button{ margin-left:8px; }
+  .empty-msg{ text-align:center; padding:60px 20px; opacity:.7; }
+
+  /* ---- 執筆画面：常時、原稿と右上3ボタンのみ表示 ---- */
+  #editor-screen{ position:relative; }
+  .mini-toolbar{
+    position:fixed; top:14px; right:18px; z-index:20;
+    display:flex; gap:8px;
+  }
+  .mini-toolbar button{
+    background:var(--card); color:var(--ink); border:1px solid var(--border);
+    padding:6px 12px; border-radius:6px; cursor:pointer; font-size:12px;
+    opacity:.85;
+  }
+  .mini-toolbar button:hover{ opacity:1; }
+
+  .edit-panel{
+    position:fixed; top:52px; right:18px; z-index:19;
+    display:none; flex-direction:column; gap:12px;
+    background:var(--panel); border:1px solid var(--border); border-radius:10px;
+    padding:16px 18px; width:280px; font-size:13px;
+    box-shadow:0 4px 16px rgba(0,0,0,.15);
+  }
+  .edit-panel.open{ display:flex; }
+  .edit-panel .back-link{
+    background:none; border:none; color:var(--accent); text-align:left;
+    padding:0; cursor:pointer; font-size:13px; text-decoration:underline;
+  }
+  .edit-panel input#titleInput{
+    width:100%; font-size:14px; font-weight:bold;
+  }
+  .edit-panel label{ display:flex; align-items:center; gap:6px; justify-content:space-between; }
+  .edit-panel input[type=number]{ width:60px; }
+  .edit-panel .toggles{ display:flex; gap:8px; }
+  .toggle-btn{
+    border:1px solid var(--border); background:var(--card); color:var(--ink);
+    padding:5px 10px; border-radius:14px; cursor:pointer; font-size:12px;
+  }
+  .toggle-btn.on{ background:var(--accent); color:#fff; border-color:var(--accent); }
+  #countsDisplay.counts{ font-size:12px; }
+  .counts.warn-near{ color:var(--warn); font-weight:bold; }
+  .counts.warn-over{ color:var(--danger); font-weight:bold; }
+
+  .writing-area-wrap{
+    display:flex; justify-content:center; align-items:center;
+    padding:0; background:var(--bg); min-height:100vh;
+  }
+  #manuscript{
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    resize:none;
+    border:1px solid var(--border);
+    background:var(--card);
+    color:var(--ink);
+    padding:20px;
+    outline:none;
+    line-height:1.9;
+    letter-spacing:.05em;
+  }
+  .save-flash{
+    position:fixed; bottom:16px; right:16px; background:var(--wood); color:#fff;
+    padding:6px 12px; border-radius:6px; font-size:12px; opacity:0; transition:opacity .4s;
+    pointer-events:none;
+  }
+  .save-flash.show{ opacity:.85; }
+
+  /* ---- 設定画面 ---- */
+  .settings-wrap{ padding:24px; max-width:520px; margin:0 auto; }
+  .settings-block{
+    background:var(--card); border:1px solid var(--border); border-radius:10px;
+    padding:18px 20px; margin-bottom:16px;
+  }
+  .settings-block h3{ margin:0 0 12px; font-size:14px; color:var(--accent); }
+  .radio-row label{ margin-right:16px; }
+  .slider-row{ display:flex; align-items:center; gap:10px; }
+  .slider-row input[type=range]{ flex:1; }
+
+  .hint{ font-size:11px; opacity:.65; margin-top:4px; }
+  .confirm-overlay{
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,.4);
+    align-items:center; justify-content:center; z-index:50;
+  }
+  .confirm-overlay.show{ display:flex; }
+  .confirm-box{
+    background:var(--card); color:var(--ink); padding:24px; border-radius:10px;
+    max-width:320px; text-align:center;
+  }
+  .confirm-box p{ margin:0 0 18px; line-height:1.6; }
+  .confirm-box .confirm-actions button{ margin:0 6px; }
+</style>
+</head>
+<body>
+
+<!-- ============ 作品一覧画面 ============ -->
+<div id="list-screen" class="screen active">
+  <header class="app-header">
+    <div class="title">サンスベリア</div>
+    <div class="actions">
+      <button onclick="goTo('settings')">設定</button>
+    </div>
+  </header>
+  <div class="toolbar-row">
+    <button class="btn" onclick="createWork()">＋ 新規作品を書く</button>
+    <select id="sortSelect" onchange="renderWorkList()">
+      <option value="new">並び替え：新しい順</option>
+      <option value="old">並び替え：古い順</option>
+      <option value="title">並び替え：タイトル順</option>
+    </select>
+  </div>
+  <div id="workList" class="work-list"></div>
+</div>
+
+<!-- ============ 執筆画面 ============ -->
+<div id="editor-screen" class="screen">
+  <div class="mini-toolbar">
+    <button onclick="togglePanel()">編集</button>
+    <button onclick="goTo('settings')">設定</button>
+    <button id="saveWordBtn" onclick="saveAsWord()">Word形式で保存</button>
+  </div>
+
+  <div id="editPanel" class="edit-panel">
+    <button class="back-link" onclick="goTo('list')">← 一覧へ戻る</button>
+    <input id="titleInput" placeholder="無題" maxlength="100">
+    <label>新人賞：
+      <select id="awardSelect" onchange="onAwardChange()"></select>
+    </label>
+    <label>1行の文字数：<input type="number" id="lineCharsInput" min="1" max="100"></label>
+    <label>1頁の行数：<input type="number" id="pageLinesInput" min="1" max="60"></label>
+    <div class="toggles">
+      <button id="countToggle" class="toggle-btn" onclick="toggleSetting('showCount')">文字数表示</button>
+      <button id="warnToggle" class="toggle-btn" onclick="toggleSetting('showWarning')">警告表示</button>
+    </div>
+    <div id="countsDisplay" class="counts">目標：--／現在：0字／残り：--</div>
+    <button class="toggle-btn" onclick="toggleNight()">ナイトモード</button>
+  </div>
+
+  <div class="writing-area-wrap">
+    <textarea id="manuscript" spellcheck="false" oninput="onManuscriptInput()"></textarea>
+  </div>
+  <div id="saveFlash" class="save-flash">保存しました</div>
+</div>
+
+<!-- ============ 設定画面 ============ -->
+<div id="settings-screen" class="screen">
+  <header class="app-header">
+    <div class="title">設定</div>
+    <div class="actions"><button onclick="goBack()">← 戻る</button></div>
+  </header>
+  <div class="settings-wrap">
+    <div class="settings-block">
+      <h3>フォント</h3>
+      <div class="radio-row">
+        <label><input type="radio" name="fontRadio" value="mincho" onchange="onSettingsChange()"> 游明朝</label>
+        <label><input type="radio" name="fontRadio" value="gothic" onchange="onSettingsChange()"> 游ゴシック</label>
+        <label><input type="radio" name="fontRadio" value="fui" onchange="onSettingsChange()"> ふい字</label>
+      </div>
+      <div class="hint">「ふい字」は専用フォントファイル未導入のため、現状は代替書体で表示されます。</div>
+    </div>
+    <div class="settings-block">
+      <h3>文字サイズ</h3>
+      <div class="slider-row">
+        <span>小</span><input type="range" id="fontSizeSlider" min="0" max="3" step="1" oninput="onSettingsChange()"><span>特大</span>
+      </div>
+    </div>
+    <div class="settings-block">
+      <h3>行間</h3>
+      <div class="slider-row">
+        <span>狭い</span><input type="range" id="lineHeightSlider" min="0" max="2" step="1" oninput="onSettingsChange()"><span>広い</span>
+      </div>
+    </div>
+    <div class="settings-block">
+      <h3>ナイトモード自動切り替え</h3>
+      <label><input type="checkbox" id="nightAutoCheck" onchange="onSettingsChange()"> 有効にする</label>
+      <div style="margin-top:10px;">切り替え時刻：<input type="time" id="nightTimeInput" onchange="onSettingsChange()"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 確認ダイアログ（汎用） ============ -->
+<div id="confirmOverlay" class="confirm-overlay">
+  <div class="confirm-box">
+    <p id="confirmMsg"></p>
+    <div class="confirm-actions">
+      <button class="btn" id="confirmYes">はい</button>
+      <button class="btn secondary" id="confirmNo">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===================== データ定義 ===================== */
+const STORAGE_WORKS = 'sansevieria_works';
+const STORAGE_SETTINGS = 'sansevieria_settings';
+
+// 未決事項1: 新人賞プリセットは目安値。応募前に必ず公式最新情報を確認すること。
+const AWARD_PRESETS = {
+  free:   { name: '自由設定（賞を選ばない）', lineChars: 40, pageLines: 30, targetChars: null },
+  subaru: { name: '小説すばる新人賞（目安・要確認）', lineChars: 42, pageLines: 18, targetChars: 100000 },
+  seicho: { name: '松本清張賞（目安・要確認）', lineChars: 40, pageLines: 20, targetChars: 120000 },
+};
+
+const FONT_STACKS = {
+  mincho: '"Yu Mincho","YuMincho","Hiragino Mincho ProN",serif',
+  gothic: '"Yu Gothic","YuGothic","Hiragino Kaku Gothic ProN",sans-serif',
+  fui: '"HuiFont29","Yu Mincho","Hiragino Mincho ProN",cursive', // フォントファイル未導入。代替表示。
+};
+const FONT_SIZES = [15, 18, 21, 25]; // 小・中・大・特大 (px)
+const LINE_HEIGHTS = [1.5, 1.9, 2.4]; // 狭い・標準・広い
+
+/* ===================== 状態管理 ===================== */
+let works = loadWorks();
+let settings = loadSettings();
+let currentWorkId = null;
+let saveTimer = null;
+let prevScreen = 'list';
+let pendingAwardChange = null;
+
+function loadWorks(){
+  try{ return JSON.parse(localStorage.getItem(STORAGE_WORKS)) || []; }catch(e){ return []; }
+}
+function persistWorks(){ localStorage.setItem(STORAGE_WORKS, JSON.stringify(works)); }
+
+function loadSettings(){
+  const defaults = {
+    font: 'mincho', fontSizeStep: 1, lineHeightStep: 1,
+    nightAuto: false, nightTime: '18:00', nightMode: false,
+    showCount: false, showWarning: false,
+  };
+  try{
+    const saved = JSON.parse(localStorage.getItem(STORAGE_SETTINGS));
+    return Object.assign(defaults, saved || {});
+  }catch(e){ return defaults; }
+}
+function persistSettings(){ localStorage.setItem(STORAGE_SETTINGS, JSON.stringify(settings)); }
+
+/* ===================== 画面遷移 ===================== */
+function goTo(screen){
+  if(screen !== 'settings') prevScreen = screen;
+  else prevScreen = document.getElementById('editor-screen').classList.contains('active') ? 'editor' : 'list';
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(screen + '-screen').classList.add('active');
+  if(screen === 'list') renderWorkList();
+  if(screen === 'settings') renderSettingsScreen();
+}
+function goBack(){ goTo(prevScreen); }
+
+/* ===================== 作品一覧 ===================== */
+function renderWorkList(){
+  const sort = document.getElementById('sortSelect').value;
+  let sorted = [...works];
+  if(sort === 'new') sorted.sort((a,b) => b.updatedAt - a.updatedAt);
+  if(sort === 'old') sorted.sort((a,b) => a.updatedAt - b.updatedAt);
+  if(sort === 'title') sorted.sort((a,b) => a.title.localeCompare(b.title, 'ja'));
+
+  const listEl = document.getElementById('workList');
+  if(sorted.length === 0){
+    listEl.innerHTML = '<div class="empty-msg">まだ作品がありません。「＋ 新規作品を書く」から始めましょう</div>';
+    return;
+  }
+  listEl.innerHTML = sorted.map(w => {
+    const awardName = AWARD_PRESETS[w.award] ? AWARD_PRESETS[w.award].name : '自由設定（賞を選ばない）';
+    const current = countChars(w.body);
+    const target = w.targetChars ? (w.targetChars/10000).toFixed(1)+'万字' : '未設定';
+    const date = new Date(w.updatedAt).toLocaleDateString('ja-JP');
+    return `<div class="work-card">
+      <div class="info">
+        <div class="t">${escapeHtml(w.title || '無題')}</div>
+        <div class="meta">新人賞：${awardName}<br>現在${current.toLocaleString()}字／目標${target}<br>最終編集：${date}</div>
+      </div>
+      <div class="card-actions">
+        <button class="btn small" onclick="openWork('${w.id}')">開く</button>
+        <button class="btn small secondary" onclick="deleteWork('${w.id}')">削除</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function createWork(){
+  const w = {
+    id: 'w' + Date.now(),
+    title: '', award: 'free',
+    body: '',
+    lineChars: AWARD_PRESETS.free.lineChars,
+    pageLines: AWARD_PRESETS.free.pageLines,
+    targetChars: AWARD_PRESETS.free.targetChars,
+    createdAt: Date.now(), updatedAt: Date.now(),
+  };
+  works.push(w);
+  persistWorks();
+  openWork(w.id);
+}
+
+function openWork(id){
+  currentWorkId = id;
+  const w = works.find(x => x.id === id);
+  document.getElementById('titleInput').value = w.title;
+  document.getElementById('manuscript').value = w.body;
+  document.getElementById('lineCharsInput').value = w.lineChars;
+  document.getElementById('pageLinesInput').value = w.pageLines;
+  populateAwardSelect();
+  document.getElementById('awardSelect').value = w.award;
+  applyManuscriptStyle();
+  updateCounts();
+  closePanel();
+  goTo('editor');
+}
+
+function deleteWork(id){
+  showConfirm('この作品を削除します。この操作は取り消せません。よろしいですか？', () => {
+    works = works.filter(w => w.id !== id);
+    persistWorks();
+    renderWorkList();
+  });
+}
+
+/* ===================== 執筆画面 ===================== */
+function populateAwardSelect(){
+  const sel = document.getElementById('awardSelect');
+  sel.innerHTML = Object.entries(AWARD_PRESETS).map(([key, v]) =>
+    `<option value="${key}">${v.name}</option>`).join('');
+}
+
+function currentWork(){ return works.find(w => w.id === currentWorkId); }
+
+function onAwardChange(){
+  const sel = document.getElementById('awardSelect');
+  const newAward = sel.value;
+  const w = currentWork();
+  if(newAward === w.award) return;
+  pendingAwardChange = newAward;
+  showConfirm('フォーマットを変更しますか？　現在の行数・文字数設定が変わります', () => {
+    const preset = AWARD_PRESETS[pendingAwardChange];
+    w.award = pendingAwardChange;
+    w.lineChars = preset.lineChars;
+    w.pageLines = preset.pageLines;
+    w.targetChars = preset.targetChars;
+    document.getElementById('lineCharsInput').value = w.lineChars;
+    document.getElementById('pageLinesInput').value = w.pageLines;
+    applyManuscriptStyle();
+    updateCounts();
+    scheduleSave();
+  }, () => {
+    sel.value = w.award; // キャンセル時は元に戻す
+  });
+}
+
+function onManuscriptInput(){
+  updateCounts();
+  scheduleSave();
+}
+
+document.getElementById('titleInput').addEventListener('input', () => scheduleSave());
+document.getElementById('lineCharsInput').addEventListener('change', () => {
+  const w = currentWork();
+  w.lineChars = clamp(parseInt(document.getElementById('lineCharsInput').value)||40, 1, 100);
+  document.getElementById('lineCharsInput').value = w.lineChars;
+  applyManuscriptStyle();
+  scheduleSave();
+});
+document.getElementById('pageLinesInput').addEventListener('change', () => {
+  const w = currentWork();
+  w.pageLines = clamp(parseInt(document.getElementById('pageLinesInput').value)||30, 1, 60);
+  document.getElementById('pageLinesInput').value = w.pageLines;
+  applyManuscriptStyle();
+  scheduleSave();
+});
+
+function clamp(n, min, max){ return Math.min(max, Math.max(min, n)); }
+
+function countChars(text){
+  return text.length; // 原稿用紙換算：空白・改行を含めてカウント
+}
+
+function updateCounts(){
+  const w = currentWork();
+  const current = countChars(document.getElementById('manuscript').value);
+  const el = document.getElementById('countsDisplay');
+  el.classList.remove('warn-near', 'warn-over');
+
+  if(!settings.showCount){
+    el.textContent = '';
+    return;
+  }
+  if(w.targetChars){
+    const remain = w.targetChars - current;
+    el.textContent = `目標：${w.targetChars.toLocaleString()}字／現在：${current.toLocaleString()}字／残り：${remain.toLocaleString()}字`;
+    if(settings.showWarning){
+      const ratio = current / w.targetChars;
+      if(ratio >= 1) el.classList.add('warn-over');
+      else if(ratio >= 0.9) el.classList.add('warn-near');
+    }
+  }else{
+    el.textContent = `現在：${current.toLocaleString()}字（目標未設定）`;
+  }
+}
+
+function toggleSetting(key){
+  settings[key] = !settings[key];
+  persistSettings();
+  refreshToggleButtons();
+  updateCounts();
+}
+function refreshToggleButtons(){
+  document.getElementById('countToggle').classList.toggle('on', settings.showCount);
+  document.getElementById('warnToggle').classList.toggle('on', settings.showWarning);
+}
+
+function applyManuscriptStyle(){
+  const w = currentWork();
+  const ta = document.getElementById('manuscript');
+  const fontSize = FONT_SIZES[settings.fontSizeStep];
+  const lineHeight = LINE_HEIGHTS[settings.lineHeightStep];
+  ta.style.fontFamily = FONT_STACKS[settings.font];
+  ta.style.fontSize = fontSize + 'px';
+  ta.style.lineHeight = lineHeight;
+  // 縦書き：height = 1行の文字数（縦方向の長さ）, width = 1頁の行数（横に並ぶ行の本数）
+  ta.style.height = (w.lineChars * fontSize * lineHeight * 0.62) + 'px';
+  ta.style.width = (w.pageLines * fontSize * lineHeight) + 'px';
+  ta.style.maxHeight = '80vh';
+  ta.style.maxWidth = '90vw';
+}
+
+/* ---- 自動保存 ---- */
+function scheduleSave(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(doSave, 10000);
+}
+function doSave(){
+  const w = currentWork();
+  if(!w) return;
+  w.title = document.getElementById('titleInput').value;
+  w.body = document.getElementById('manuscript').value;
+  w.updatedAt = Date.now();
+  persistWorks();
+  flashSaved();
+}
+function flashSaved(){
+  const el = document.getElementById('saveFlash');
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 1200);
+}
+
+/* ---- 編集パネル（新人賞・行数文字数・一覧へ戻る等をまとめて開閉） ---- */
+function togglePanel(){
+  document.getElementById('editPanel').classList.toggle('open');
+}
+function closePanel(){
+  document.getElementById('editPanel').classList.remove('open');
+}
+document.addEventListener('click', (e) => {
+  const panel = document.getElementById('editPanel');
+  const toolbar = document.querySelector('.mini-toolbar');
+  if(!panel.classList.contains('open')) return;
+  if(panel.contains(e.target) || toolbar.contains(e.target)) return;
+  closePanel();
+});
+
+/* ---- ナイトモード ---- */
+function toggleNight(){
+  settings.nightMode = !settings.nightMode;
+  persistSettings();
+  applyNightMode();
+}
+function applyNightMode(){
+  document.body.classList.toggle('night', settings.nightMode);
+}
+function checkNightAutoTimer(){
+  if(!settings.nightAuto) return;
+  const now = new Date();
+  const [h, m] = settings.nightTime.split(':').map(Number);
+  const target = h * 60 + m;
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  if(nowMin >= target && !settings.nightMode){
+    settings.nightMode = true;
+    persistSettings();
+    applyNightMode();
+  }
+}
+setInterval(checkNightAutoTimer, 30000);
+
+/* ---- Word形式で保存（本文のみ、応募規定の表紙・あらすじは対象外） ---- */
+async function saveAsWord(){
+  const btn = document.getElementById('saveWordBtn');
+  const w = currentWork();
+  btn.textContent = '保存中…';
+  btn.disabled = true;
+  try{
+    const { Document, Packer, Paragraph, TextRun } = docx;
+    const bodyText = document.getElementById('manuscript').value;
+    const paragraphs = bodyText.split('\n').map(line => new Paragraph({
+      children: [new TextRun(line)]
+    }));
+    const doc = new Document({
+      sections: [{ children: [
+        new Paragraph({ children: [new TextRun({ text: w.title || '無題', bold: true, size: 32 })] }),
+        new Paragraph({ children: [] }),
+        ...paragraphs
+      ]}]
+    });
+    const blob = await Packer.toBlob(doc);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = (w.title || '無題') + '.docx';
+    a.click();
+    URL.revokeObjectURL(url);
+    flashWordSaved();
+  }catch(e){
+    alert('Word形式での保存に失敗しました。通信環境をご確認ください。');
+  }finally{
+    btn.textContent = 'Word形式で保存';
+    btn.disabled = false;
+  }
+}
+function flashWordSaved(){
+  const el = document.getElementById('saveFlash');
+  el.textContent = 'Wordファイルを保存しました';
+  el.classList.add('show');
+  setTimeout(() => { el.classList.remove('show'); el.textContent = '保存しました'; }, 1600);
+}
+
+/* ===================== 設定画面 ===================== */
+function renderSettingsScreen(){
+  document.querySelector(`input[name=fontRadio][value="${settings.font}"]`).checked = true;
+  document.getElementById('fontSizeSlider').value = settings.fontSizeStep;
+  document.getElementById('lineHeightSlider').value = settings.lineHeightStep;
+  document.getElementById('nightAutoCheck').checked = settings.nightAuto;
+  document.getElementById('nightTimeInput').value = settings.nightTime;
+}
+function onSettingsChange(){
+  settings.font = document.querySelector('input[name=fontRadio]:checked').value;
+  settings.fontSizeStep = parseInt(document.getElementById('fontSizeSlider').value);
+  settings.lineHeightStep = parseInt(document.getElementById('lineHeightSlider').value);
+  settings.nightAuto = document.getElementById('nightAutoCheck').checked;
+  settings.nightTime = document.getElementById('nightTimeInput').value;
+  persistSettings();
+  if(currentWorkId) applyManuscriptStyle();
+  checkNightAutoTimer();
+}
+
+/* ===================== 確認ダイアログ ===================== */
+function showConfirm(msg, onYes, onNo){
+  document.getElementById('confirmMsg').textContent = msg;
+  const overlay = document.getElementById('confirmOverlay');
+  overlay.classList.add('show');
+  const yesBtn = document.getElementById('confirmYes');
+  const noBtn = document.getElementById('confirmNo');
+  const cleanup = () => {
+    overlay.classList.remove('show');
+    yesBtn.onclick = null; noBtn.onclick = null;
+  };
+  yesBtn.onclick = () => { cleanup(); onYes && onYes(); };
+  noBtn.onclick = () => { cleanup(); onNo && onNo(); };
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+/* ===================== 初期化 ===================== */
+refreshToggleButtons();
+applyNightMode();
+checkNightAutoTimer();
+renderWorkList();
+</script>
+</body>
+</html>
