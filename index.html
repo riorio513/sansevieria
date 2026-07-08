@@ -126,8 +126,9 @@
   .counts.warn-over{ color:var(--danger); font-weight:bold; }
 
   .writing-area-wrap{
-    display:flex; justify-content:center; align-items:center;
-    padding:0; background:var(--bg); min-height:100vh;
+    display:flex; justify-content:center; align-items:flex-start;
+    padding:24px 0; background:var(--bg); min-height:100vh;
+    overflow-x:auto;
   }
   #manuscript{
     writing-mode: vertical-rl;
@@ -508,10 +509,16 @@ function applyManuscriptStyle(){
   ta.style.fontSize = fontSize + 'px';
   ta.style.lineHeight = lineHeight;
   // 縦書き：height = 1行の文字数（縦方向の長さ）, width = 1頁の行数（横に並ぶ行の本数）
-  ta.style.height = (w.lineChars * fontSize * lineHeight * 0.62) + 'px';
-  ta.style.width = (w.pageLines * fontSize * lineHeight) + 'px';
-  ta.style.maxHeight = '80vh';
-  ta.style.maxWidth = '90vw';
+  // box-sizing:border-box のため、文字が入る領域(content)に padding・border を足して height/width を算出する。
+  // 1文字あたりの縦方向の目安は fontSize（+letter-spacing分）。line-heightは列の太さ(width側)にのみ影響する。
+  const charAdvance = fontSize * 1.05;
+  const paddingPx = 37.8; // 1cm（片側）
+  const borderPx = 1;
+  const contentHeight = w.lineChars * charAdvance;
+  const contentWidth = w.pageLines * fontSize * lineHeight;
+  ta.style.height = (contentHeight + paddingPx * 2 + borderPx * 2) + 'px';
+  ta.style.width = (contentWidth + paddingPx * 2 + borderPx * 2) + 'px';
+  ta.style.maxWidth = '95vw';
 }
 
 /* ---- 自動保存 ---- */
