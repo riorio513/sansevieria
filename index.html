@@ -299,8 +299,9 @@ const FONT_STACKS = {
   gothic: '"Yu Gothic","YuGothic","Hiragino Kaku Gothic ProN",sans-serif',
   fui: '"HuiFont29","Yu Mincho","Hiragino Mincho ProN",cursive', // フォントファイル未導入。代替表示。
 };
-const FONT_SIZES = [15, 18, 21, 25]; // 小・中・大・特大 (px)
+const FONT_SIZES = [12, 14, 17, 20]; // 小・中・大・特大 (px)
 const LINE_HEIGHTS = [1.5, 1.9, 2.4]; // 狭い・標準・広い
+const NO_SCROLL_MAX_LINE_CHARS = 40; // これ以下ならスクロールなしで収まるよう文字サイズを自動調整
 
 /* ===================== 状態管理 ===================== */
 let works = loadWorks();
@@ -503,23 +504,33 @@ function refreshToggleButtons(){
 function applyManuscriptStyle(){
   const w = currentWork();
   const ta = document.getElementById('manuscript');
-  const fontSize = FONT_SIZES[settings.fontSizeStep];
   const lineHeight = LINE_HEIGHTS[settings.lineHeightStep];
+  let fontSize = FONT_SIZES[settings.fontSizeStep];
   ta.style.fontFamily = FONT_STACKS[settings.font];
-  ta.style.fontSize = fontSize + 'px';
-  ta.style.lineHeight = lineHeight;
-  // 縦書き：height = 1行の文字数（縦方向の長さ）, width = 1頁の行数（横に並ぶ行の本数）
+
   // box-sizing:border-box のため、文字が入る領域(content)に padding・border を足して height/width を算出する。
   // 1文字あたりの縦方向の目安は fontSize（+letter-spacing分）。line-heightは列の太さ(width側)にのみ影響する。
-  const charAdvance = fontSize * 1.05;
+  const charAdvance1x = 1.05;
   const paddingPx = 37.8; // 1cm（片側）
   const borderPx = 1;
-  const contentHeight = w.lineChars * charAdvance;
+
+  // 1行の文字数が一定以下なら、画面の高さに収まるよう文字サイズを自動で縮小する（縦スクロール不要にする）
+  if(w.lineChars <= NO_SCROLL_MAX_LINE_CHARS){
+    const reserved = 64; // writing-area-wrapの上下余白＋バッファ
+    const available = window.innerHeight - reserved;
+    const maxFitFontSize = (available - paddingPx * 2 - borderPx * 2) / (w.lineChars * charAdvance1x);
+    fontSize = Math.min(fontSize, Math.max(maxFitFontSize, 9));
+  }
+
+  ta.style.fontSize = fontSize + 'px';
+  ta.style.lineHeight = lineHeight;
+  const contentHeight = w.lineChars * fontSize * charAdvance1x;
   const contentWidth = w.pageLines * fontSize * lineHeight;
   ta.style.height = (contentHeight + paddingPx * 2 + borderPx * 2) + 'px';
   ta.style.width = (contentWidth + paddingPx * 2 + borderPx * 2) + 'px';
   ta.style.maxWidth = '95vw';
 }
+window.addEventListener('resize', () => { if(currentWorkId) applyManuscriptStyle(); });
 
 /* ---- 自動保存 ---- */
 function scheduleSave(){
