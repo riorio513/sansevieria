@@ -127,8 +127,8 @@
 
   .writing-area-wrap{
     display:flex; justify-content:center; align-items:flex-start;
-    padding:24px 0; background:var(--bg); min-height:100vh;
-    overflow-x:auto;
+    padding:12px 0; background:var(--bg); min-height:100vh;
+    overflow-x:auto; overflow-y:auto;
   }
   #manuscript{
     writing-mode: vertical-rl;
@@ -137,7 +137,7 @@
     border:1px solid var(--border);
     background:var(--card);
     color:var(--ink);
-    padding:1cm;
+    padding:0.4cm 1cm; /* 上下は詰め、左右は1cmの余白を確保（読める文字サイズを優先） */
     outline:none;
     line-height:1.9;
     letter-spacing:.05em;
@@ -299,8 +299,9 @@ const FONT_STACKS = {
   gothic: '"Yu Gothic","YuGothic","Hiragino Kaku Gothic ProN",sans-serif',
   fui: '"HuiFont29","Yu Mincho","Hiragino Mincho ProN",cursive', // フォントファイル未導入。代替表示。
 };
-const FONT_SIZES = [12, 14, 17, 20]; // 小・中・大・特大 (px)
+const FONT_SIZES = [13, 16, 19, 23]; // 小・中・大・特大 (px)
 const LINE_HEIGHTS = [1.5, 1.9, 2.4]; // 狭い・標準・広い
+const MIN_READABLE_FONT_SIZE = 15; // これより小さくは自動縮小しない（読みやすさ優先、収まらなければスクロールを許容）
 
 /* ===================== 状態管理 ===================== */
 let works = loadWorks();
@@ -509,22 +510,25 @@ function applyManuscriptStyle(){
 
   // box-sizing:border-box のため、文字が入る領域(content)に padding・border を足して height/width を算出する。
   // 1文字あたりの縦方向の目安は fontSize（+letter-spacing分）。line-heightは列の太さ(width側)にのみ影響する。
+  // padding は上下(height側)0.4cm・左右(width側)1cmで非対称（上下を詰めて文字サイズを稼ぐ）。
   const charAdvance1x = 1.05;
-  const paddingPx = 37.8; // 1cm（片側）
+  const paddingTBPx = 15.1; // 0.4cm（片側）＝height計算に使用
+  const paddingLRPx = 37.8; // 1cm（片側）＝width計算に使用
   const borderPx = 1;
 
-  // 1行の文字数がどれだけ多くても、画面の高さに収まるよう文字サイズを自動で縮小する（縦スクロール不要にする）
-  const reserved = 64; // writing-area-wrapの上下余白＋バッファ
+  // 画面の高さに収まるよう文字サイズを縮小しつつ、可読性のため MIN_READABLE_FONT_SIZE より小さくはしない。
+  // 収まりきらない場合はスクロールを許容する（読みやすさを優先）。
+  const reserved = 40; // writing-area-wrapの上下余白＋バッファ
   const available = window.innerHeight - reserved;
-  const maxFitFontSize = (available - paddingPx * 2 - borderPx * 2) / (w.lineChars * charAdvance1x);
-  fontSize = Math.min(fontSize, Math.max(maxFitFontSize, 6));
+  const maxFitFontSize = (available - paddingTBPx * 2 - borderPx * 2) / (w.lineChars * charAdvance1x);
+  fontSize = Math.min(fontSize, Math.max(maxFitFontSize, MIN_READABLE_FONT_SIZE));
 
   ta.style.fontSize = fontSize + 'px';
   ta.style.lineHeight = lineHeight;
   const contentHeight = w.lineChars * fontSize * charAdvance1x;
   const contentWidth = w.pageLines * fontSize * lineHeight;
-  ta.style.height = (contentHeight + paddingPx * 2 + borderPx * 2) + 'px';
-  ta.style.width = (contentWidth + paddingPx * 2 + borderPx * 2) + 'px';
+  ta.style.height = (contentHeight + paddingTBPx * 2 + borderPx * 2) + 'px';
+  ta.style.width = (contentWidth + paddingLRPx * 2 + borderPx * 2) + 'px';
   ta.style.maxWidth = '95vw';
 }
 window.addEventListener('resize', () => { if(currentWorkId) applyManuscriptStyle(); });
